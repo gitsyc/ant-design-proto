@@ -1,7 +1,9 @@
+import { useNavigate } from 'react-router-dom'
 import { Button, Card, Form, Input, Select, Space, Table } from '../ui'
 import { semanticTokens } from '../theme/tokens'
 
 export default function VehiclePurchaseOrdersPage() {
+  const navigate = useNavigate()
   const [form] = Form.useForm()
 
   const columns = [
@@ -306,7 +308,7 @@ export default function VehiclePurchaseOrdersPage() {
         title="采购订单"
         extra={
           <Space className="app-table-actions" size={semanticTokens.size.buttonGap}>
-            <Button type="primary">新增</Button>
+            <Button type="primary" onClick={() => navigate('/vehicle/purchase/create')}>新增</Button>
             <Button className="app-btn-secondary">导出</Button>
             <Button type="primary" danger>
               取消

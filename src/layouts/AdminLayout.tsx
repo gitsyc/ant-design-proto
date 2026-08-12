@@ -53,6 +53,10 @@ export default function AdminLayout() {
         label: '整车采购',
         children: [
           {
+            key: '/vehicle/purchase/filings',
+            label: <Link to="/vehicle/purchase/filings">大客户备案</Link>,
+          },
+          {
             key: '/vehicle/purchase/orders',
             label: <Link to="/vehicle/purchase/orders">采购订单</Link>,
           },
@@ -63,7 +67,7 @@ export default function AdminLayout() {
         label: '整车销售',
         children: [
           { key: '/sales/orders', label: <Link to="/sales/orders">订单列表</Link> },
-          { key: '/sales/order-detail', label: <Link to="/sales/order-detail">订单详情</Link> },
+          { key: '/sales/unbind-applies', label: <Link to="/sales/unbind-applies">解绑申请</Link> },
         ],
       },
       {
@@ -84,7 +88,15 @@ export default function AdminLayout() {
     ],
   }
 
-  const selectedKeys = [location.pathname]
+  // 将详情/新建等子路由映射到对应的菜单叶子，保证高亮正确
+  const selectedMenuKey = useMemo(() => {
+    const path = location.pathname
+    if (path.startsWith('/vehicle/purchase/filings')) return '/vehicle/purchase/filings'
+    if (path.startsWith('/vehicle/purchase')) return '/vehicle/purchase/orders'
+    if (path.startsWith('/sales/orders')) return '/sales/orders'
+    if (path.startsWith('/sales/unbind-applies')) return '/sales/unbind-applies'
+    return path
+  }, [location.pathname])
   const openKeys = ['vehicle-management', 'vehicle-purchase', 'sales', 'customers']
 
   return (
@@ -124,7 +136,7 @@ export default function AdminLayout() {
           mode="inline"
           theme="light"
           items={siderItems}
-          selectedKeys={selectedKeys}
+          selectedKeys={[selectedMenuKey]}
           defaultOpenKeys={openKeys}
           style={{ background: 'transparent' }}
         />
