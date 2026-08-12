@@ -193,6 +193,18 @@ html,
   border-radius: var(--app-table-radius) !important;
 }
 
+/* 子表（异地发运分配）：轻量表头，弱化视觉权重，与主表蓝底表头形成层级区分 */
+.app-subtable .ant-table-thead > tr > th {
+  background: #f5f7fa !important;
+  color: #5a6b87 !important;
+  font-weight: 500 !important;
+  border-bottom: 1px solid #e4e9f2 !important;
+}
+.app-subtable .ant-table-thead > tr > th .ant-table-column-title,
+.app-subtable .ant-table-thead > tr > th .anticon {
+  color: #5a6b87 !important;
+}
+
 .app-table-card.ant-card {
   border-radius: var(--app-table-radius) !important;
 }

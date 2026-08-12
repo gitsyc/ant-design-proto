@@ -325,16 +325,28 @@ export default function MajorCustomerFilingFormPage() {
               // 仅该车型标识涉及异地发运时展示异地收货地址从表
               rowExpandable: (r: VehicleDetail) => r.involveRemote,
               expandedRowRender: (r: VehicleDetail) => (
-                <div style={{ padding: '4px 0' }}>
-                  <div style={{ marginBottom: 8, fontSize: 12, color: semanticTokens.color.filterLabelText }}>
-                    异地发运分配（车型：{r.model || '未命名'}，从地址簿选地址，各地址核定数之和不超过车型数量 {r.quantity}）
+                <div
+                  style={{
+                    margin: '4px 0 4px 32px',
+                    padding: '10px 12px 12px',
+                    background: '#f5f7fa',
+                    borderLeft: '3px solid #1677ff',
+                    borderRadius: 4,
+                  }}
+                >
+                  <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 600, color: '#5a6b87' }}>
+                    ▸ 异地发运分配 · 车型「{r.model || '未命名'}」
+                    <span style={{ fontWeight: 400, marginLeft: 6 }}>
+                      （从地址簿选地址，各地址核定数之和不超过车型数量 {r.quantity}）
+                    </span>
                   </div>
                   <Table
+                    className="app-subtable"
                     rowKey="key"
                     size="small"
                     pagination={false}
                     dataSource={r.allocations}
-                    locale={{ emptyText: '暂无分配，点击右上「加分配」从地址簿选择收货地址' }}
+                    locale={{ emptyText: '暂无分配，点击该车型行右侧「加分配」从地址簿选择收货地址' }}
                     columns={[
                       {
                         title: '异地收货地址',
