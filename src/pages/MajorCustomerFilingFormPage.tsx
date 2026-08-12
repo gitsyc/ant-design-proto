@@ -204,14 +204,14 @@ export default function MajorCustomerFilingFormPage() {
             <Form.Item name="projectName" label="大客户项目" rules={[{ required: true, message: '请输入大客户项目' }, { max: 50 }]}>
               <Input placeholder="请输入" />
             </Form.Item>
-            <Form.Item name="customerNo" label="大客户编号" rules={[{ max: 50 }]}>
-              <Input placeholder="请输入" />
+            <Form.Item name="customerNo" label="大客户编号">
+              <Input disabled placeholder="系统自动生成" />
             </Form.Item>
             <Form.Item name="deadline" label="交期截止" rules={[{ required: true, message: '请选择交期截止日期' }]}>
-              <DatePicker style={{ width: '100%' }} />
+              <DatePicker style={{ width: '100%' }} placeholder="请选择日期" />
             </Form.Item>
-            <Form.Item name="crmNo" label="CRM单据编号" rules={[{ max: 50 }]}>
-              <Input placeholder="请输入" />
+            <Form.Item name="crmNo" label="CRM单据编号">
+              <Input disabled placeholder="同步CRM后由CRM返回" />
             </Form.Item>
             <Form.Item name="remark" label="备注" rules={[{ max: 100 }]}>
               <Input.TextArea placeholder="请输入" maxLength={100} autoSize={{ minRows: 1, maxRows: 3 }} />
