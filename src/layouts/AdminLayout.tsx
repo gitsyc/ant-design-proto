@@ -5,6 +5,7 @@ import { LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, UserOutlined } fr
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { semanticTokens } from '../theme/tokens'
 import { useAppToken } from '../theme/AppThemeProvider'
+import { AnnotationOverlay } from '../components/Annotation/AnnotationOverlay'
 
 const { Header, Sider, Content } = Layout
 
@@ -191,6 +192,7 @@ export default function AdminLayout() {
           <Outlet />
         </Content>
       </Layout>
+      <AnnotationOverlay />
     </Layout>
   )
 }

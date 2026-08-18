@@ -1,0 +1,91 @@
+{
+  "page": "/vehicle/purchase/filings",
+  "title": "大客户备案-列表页",
+  "updatedAt": "2026-08-13",
+  "annotations": [
+    {
+      "id": "annot-filinglist-filter-main",
+      "type": "selector",
+      "selector": ".annot-filinglist-filter-main",
+      "position": { "x": 0, "y": 0 },
+      "title": "筛选区字段说明",
+      "content": "| 字段 | 控件 | 说明 |\n|---|---|---|\n| 大客户项目 | 文本输入 | 按项目名称模糊匹配 |\n| 大客户编号 | 文本输入 | 按编号模糊匹配 |\n| 备案状态 | 下拉选择 | 全部/已保存/审核中/审核驳回/已审核/同步失败/已取消 |\n| 是否涉及异地收货 | 下拉选择 | 全部/是/否；按备案级派生（任一车型涉及即为是） |\n| 交期截止 | 日期区间 | 按交期截止日期区间过滤 |",
+      "category": "filter",
+      "source": "SRS 3.5.1（二）列表功能 / 筛选功能",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filinglist-field-remote",
+      "type": "selector",
+      "selector": ".annot-filinglist-field-remote",
+      "position": { "x": 0, "y": 0 },
+      "title": "是否涉及异地收货列",
+      "content": "取值\"是/否\"，按备案级派生——只要备案中任一车型标识为涉及异地收货，该备案即视为\"是\"。列表其余列：大客户项目、大客户编号（无值显示\"-\"）、交期截止、备案状态、创建时间。",
+      "category": "field",
+      "source": "SRS 3.5.1（二）列表功能",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filinglist-rule-status",
+      "type": "selector",
+      "selector": ".annot-filinglist-rule-status",
+      "position": { "x": 0, "y": 0 },
+      "title": "备案状态枚举与流转",
+      "content": "| 状态 | 含义 | 触发 |\n|---|---|---|\n| 已保存 | 已保存且成功同步CRM，未提交；可编辑、可提交 | 保存并同步CRM成功 |\n| 审核中 | 已提交，处于审批流程中 | 已保存状态下提交 |\n| 审核驳回 | 被某节点驳回，退回修改或取消 | 任一节点驳回 |\n| 已审核 | 全部节点通过，可作采购前置依据 | 末级（含三方科）通过 |\n| 同步失败 | 已保存但同步CRM失败，可编辑、可重试 | 保存时同步CRM失败 |\n| 已取消 | 驳回后取消申请，关闭不可恢复 | 审核驳回下取消申请 |\n\n流转：保存→已保存/同步失败；同步失败→重试→已保存；已保存→提交→审核中→已审核/审核驳回；审核驳回→修改保存后重提 或 取消→已取消。",
+      "category": "rule",
+      "source": "SRS 6.1 数据字典、3.5.1（二）多级审批",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filinglist-action-row",
+      "type": "selector",
+      "selector": ".annot-filinglist-action-row",
+      "position": { "x": 0, "y": 0 },
+      "title": "操作列 — 编辑/查看/重试同步/取消申请/审批记录",
+      "content": "| 操作 | 展示条件 | 行为 |\n|---|---|---|\n| 编辑 | 已保存/审核驳回/同步失败 | 进入表单可编辑；修改后需先保存（重新同步CRM）再由已保存提交 |\n| 查看 | 审核中/已审核/已取消 | 进入表单只读 |\n| 重试同步 | 仅同步失败 | 重新发起CRM同步，成功转已保存并填入CRM单据编号 |\n| 取消申请 | 仅审核驳回 | 二次确认后状态变为已取消，不可恢复 |\n| 审批记录 | 所有状态 | 跳转表单并锚定审批记录区 |",
+      "category": "action",
+      "source": "SRS 3.5.1（二）多级审批、业务规则、边界与异常",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filinglist-action-add",
+      "type": "selector",
+      "selector": ".annot-filinglist-action-add",
+      "position": { "x": 0, "y": 0 },
+      "title": "工具栏 — 新增按钮",
+      "content": "点击\"新增\"进入大客户备案录入：填写经销商信息（自动带出不可改）、大客户项目、交期截止、备注，上传营业执照与合同，录入车辆明细（车系/车型/数量），维护异地收货地址簿，为涉及异地收货的车型标识并分配收货地址与核定发车数量。",
+      "category": "action",
+      "source": "SRS 3.2 功能清单、3.5.1（二）备案信息录入",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filinglist-action-toolbar",
+      "type": "selector",
+      "selector": ".annot-filinglist-action-toolbar",
+      "position": { "x": 0, "y": 0 },
+      "title": "工具栏 — 新增/导出/取消/刷新",
+      "content": "工具栏容器。新增见\"工具栏—新增按钮\"。导出/刷新等其余工具栏按钮为列表页通用操作，本次 SRS 未定义其具体行为，按页面现状呈现，需与产品确认。",
+      "category": "action",
+      "source": "页面现状（导出/刷新待产品确认）",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filinglist-rule-page",
+      "type": "selector",
+      "selector": ".annot-filinglist-rule-page",
+      "position": { "x": 0, "y": 0 },
+      "title": "列表页权限与显隐规则",
+      "content": "权限：经销商采购专员对备案录入/提交、驳回后取消申请有全部权限；大客户区域经理/战区总/大客户部经理/三方科为查看。\n\n显隐：保存/提交按钮对无权限角色完全隐藏（不渲染）；编辑入口仅已保存/审核驳回/同步失败展示；取消申请仅审核驳回展示；重试同步仅同步失败展示。",
+      "category": "rule",
+      "source": "SRS 3.3 页面访问权限、3.5.1（二）业务规则、边界与异常",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    }
+  ]
+}

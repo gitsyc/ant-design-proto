@@ -30,6 +30,7 @@ export interface RemoteAllocation {
   key: string
   addressId: string // 引用地址簿条目 id（不重复录入地址文本）
   approvedQty: number // 核定发车数量（该车型发往该地址的上限）
+  usedQty: number // 已用数量（系统按采购占用自动统计，不可编辑）
 }
 
 // 车辆明细行（本备案车型与数量的唯一录入处）
@@ -109,6 +110,7 @@ export const FILING_STATUS_OPTIONS: { value: FilingStatus | 'all'; label: string
 
 export const GROUP_OPTIONS = [{ value: '泸州联合集团', label: '泸州联合集团' }]
 export const CURRENT_DEALER_NAME = '杭州方程豹汽车销售有限公司'
+export const CURRENT_GROUP_NAME = '泸州联合集团'
 
 // 状态标签颜色映射
 export const FILING_STATUS_COLOR: Record<FilingStatus, string> = {
@@ -153,8 +155,8 @@ export const majorCustomerFilings: MajorCustomerFiling[] = [
         involveRemote: true,
         // 豹5 发往成都、重庆两地；核定异地 6+4=10 < 需求 12 → 部分异地（采购页「是否异地发车」可选）
         allocations: [
-          { key: 'al1', addressId: 'addr-cd', approvedQty: 6 },
-          { key: 'al2', addressId: 'addr-cq', approvedQty: 4 },
+          { key: 'al1', addressId: 'addr-cd', approvedQty: 6, usedQty: 3 },
+          { key: 'al2', addressId: 'addr-cq', approvedQty: 4, usedQty: 0 },
         ],
       },
       {
@@ -168,7 +170,7 @@ export const majorCustomerFilings: MajorCustomerFiling[] = [
         involveRemote: true,
         // 豹8 复用成都地址（地址簿只录一次）
         allocations: [
-          { key: 'al3', addressId: 'addr-cd', approvedQty: 5 },
+          { key: 'al3', addressId: 'addr-cd', approvedQty: 5, usedQty: 0 },
         ],
       },
     ],
@@ -176,7 +178,7 @@ export const majorCustomerFilings: MajorCustomerFiling[] = [
       { key: 'r1', approver: '陈区域', node: '大客户区域经理', approvedAt: '2026-08-01 14:00', opinion: '同意，已上传签批表', nextNode: '战区总', nextApprover: '赵战区' },
       { key: 'r2', approver: '赵战区', node: '战区总', approvedAt: '2026-08-02 09:30', opinion: '同意', nextNode: '大客户部经理', nextApprover: '孙部长' },
       { key: 'r3', approver: '孙部长', node: '大客户部经理', approvedAt: '2026-08-02 16:10', opinion: '同意', nextNode: '三方科', nextApprover: '周三方' },
-      { key: 'r4', approver: '周三方', node: '三方科', approvedAt: '2026-08-03 10:05', opinion: '异地发运核定通过', nextNode: '-', nextApprover: '-' },
+      { key: 'r4', approver: '周三方', node: '三方科', approvedAt: '2026-08-03 10:05', opinion: '异地收货核定通过', nextNode: '-', nextApprover: '-' },
     ],
   },
   {
@@ -229,7 +231,7 @@ export const majorCustomerFilings: MajorCustomerFiling[] = [
         usedQty: 0,
         involveRemote: true,
         allocations: [
-          { key: 'al1', addressId: 'addr-km', approvedQty: 6 },
+          { key: 'al1', addressId: 'addr-km', approvedQty: 6, usedQty: 0 },
         ],
       },
     ],
@@ -312,12 +314,10 @@ export function getProjectModels(projectName: string): ProjectModelInfo[] {
   return filing.vehicleDetails.map(v => {
     const addresses: RemoteAddressOption[] = []
     if (v.involveRemote) {
-      // 原型：以车型已用数量作为「首条有效分配」的累计发车近似值（按过滤掉失效地址引用后的首条，避免下标错位导致 remain 偏高）
-      const firstValidKey = v.allocations.find(al => addrMap.has(al.addressId))?.key
       for (const al of v.allocations) {
         const addr = addrMap.get(al.addressId)
         if (!addr) continue // 引用的地址已不存在则跳过
-        const usedQty = al.key === firstValidKey ? v.usedQty : 0
+        const usedQty = al.usedQty ?? 0
         addresses.push({
           addressId: addr.id,
           province: addr.province,

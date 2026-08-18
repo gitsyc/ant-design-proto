@@ -13,9 +13,9 @@ export default function VehiclePurchaseOrdersPage() {
     { title: '车型', dataIndex: 'model' },
     { title: '数量', dataIndex: 'quantity' },
     { title: '含税总额', dataIndex: 'amount' },
-    { title: '状态', dataIndex: 'status' },
+    { title: '状态', dataIndex: 'status', render: (value: string) => <span className="annot-orderlist-rule-status">{value}</span> },
     { title: '创建日期', dataIndex: 'createdAt' },
-    { title: '操作', render: () => <a>查看</a> },
+    { title: '操作', render: () => <a className="annot-orderlist-action-view">查看</a> },
   ]
 
   const dataSource = [
@@ -264,8 +264,8 @@ export default function VehiclePurchaseOrdersPage() {
   ]
 
   return (
-    <Space direction="vertical" size={12} style={{ width: '100%' }}>
-      <Card>
+    <Space direction="vertical" size={12} style={{ width: '100%' }} className="annot-orderlist-rule-page-note">
+      <Card className="annot-orderlist-filter-main">
         <Form form={form} layout="horizontal" labelAlign="right" colon={false}>
           <div className="app-filter-row">
             <div className="app-filter-grid">
@@ -308,16 +308,18 @@ export default function VehiclePurchaseOrdersPage() {
         title="采购订单"
         extra={
           <Space className="app-table-actions" size={semanticTokens.size.buttonGap}>
-            <Button type="primary" onClick={() => navigate('/vehicle/purchase/create')}>新增</Button>
-            <Button className="app-btn-secondary">导出</Button>
-            <Button type="primary" danger>
-              取消
-            </Button>
-            <Button className="app-btn-tertiary">刷新</Button>
+            <Button type="primary" className="annot-orderlist-action-add" onClick={() => navigate('/vehicle/purchase/create')}>新增</Button>
+            <Space className="annot-orderlist-action-toolbar-secondary" size={semanticTokens.size.buttonGap}>
+              <Button className="app-btn-secondary">导出</Button>
+              <Button type="primary" danger>
+                取消
+              </Button>
+              <Button className="app-btn-tertiary">刷新</Button>
+            </Space>
           </Space>
         }
       >
-        <Table columns={columns} dataSource={dataSource} />
+        <Table className="annot-orderlist-field-table" columns={columns} dataSource={dataSource} />
       </Card>
     </Space>
   )

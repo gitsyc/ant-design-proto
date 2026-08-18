@@ -9,19 +9,20 @@ import { AppstoreOutlined, DownloadOutlined, PlusOutlined, ReloadOutlined } from
 import { semanticTokens } from '../theme/tokens'
 import {
   CURRENT_DEALER_NAME,
+  CURRENT_GROUP_NAME,
   FILING_STATUS_COLOR,
   FILING_STATUS_OPTIONS,
-  GROUP_OPTIONS,
+  isFilingRemote,
   majorCustomerFilings,
   type FilingStatus,
   type MajorCustomerFiling,
 } from '../data/majorCustomerFilings'
 
 type QueryValues = {
-  groupName?: string
   keyword?: string
   projectName?: string
   status?: FilingStatus
+  involveRemote?: 'yes' | 'no'
   deadline?: { format: (s: string) => string }[]
 }
 
@@ -29,6 +30,7 @@ const TOGGLE_COLUMNS = [
   { key: 'customerNo', title: '大客户编号' },
   { key: 'crmNo', title: 'CRM单据编号' },
   { key: 'status', title: '单据状态' },
+  { key: 'involveRemote', title: '是否异地收货' },
   { key: 'network', title: '网络' },
   { key: 'dealerName', title: '经销商' },
   { key: 'dealerCode', title: '经销商代码' },
@@ -56,7 +58,6 @@ export default function MajorCustomerFilingListPage() {
 
   const filtered = useMemo(() => {
     return rows.filter(r => {
-      if (query.groupName && r.groupName !== query.groupName) return false
       if (query.keyword) {
         const kw = String(query.keyword)
         const hit = r.customerNo.includes(kw) || (r.crmNo ?? '').includes(kw)
@@ -64,6 +65,8 @@ export default function MajorCustomerFilingListPage() {
       }
       if (query.projectName && !r.projectName.includes(query.projectName)) return false
       if (query.status && r.status !== query.status) return false
+      if (query.involveRemote === 'yes' && !isFilingRemote(r)) return false
+      if (query.involveRemote === 'no' && isFilingRemote(r)) return false
       if (query.deadline && query.deadline.length === 2) {
         const [start, end] = query.deadline
         if (start && r.deadline < start.format('YYYY-MM-DD')) return false
@@ -95,7 +98,13 @@ export default function MajorCustomerFilingListPage() {
       title: '单据状态',
       dataIndex: 'status',
       hidden: !colVisible('status'),
-      render: (v: FilingStatus) => <Tag color={FILING_STATUS_COLOR[v]}>{v}</Tag>,
+      render: (v: FilingStatus) => <Tag color={FILING_STATUS_COLOR[v]} className="annot-filinglist-rule-status">{v}</Tag>,
+    },
+    {
+      title: '是否异地收货',
+      key: 'involveRemote',
+      hidden: !colVisible('involveRemote'),
+      render: (_: unknown, record: MajorCustomerFiling) => (<span className="annot-filinglist-field-remote">{isFilingRemote(record) ? '是' : '否'}</span>),
     },
     { title: '网络', dataIndex: 'network', hidden: !colVisible('network') },
     { title: '经销商', dataIndex: 'dealerName', hidden: !colVisible('dealerName') },
@@ -109,7 +118,7 @@ export default function MajorCustomerFilingListPage() {
       width: 140,
       fixed: 'right',
       render: (_: unknown, record: MajorCustomerFiling) => (
-        <Space size={12}>
+        <Space size={12} className="annot-filinglist-action-row">
           <a onClick={() => navigate(`/vehicle/purchase/filings/create?key=${record.key}&mode=view`)}>查看</a>
           {record.status === '已保存' && (
             <a onClick={() => navigate(`/vehicle/purchase/filings/create?key=${record.key}`)}>编辑</a>
@@ -149,13 +158,13 @@ export default function MajorCustomerFilingListPage() {
   }
 
   return (
-    <Space direction="vertical" size={12} style={{ width: '100%' }}>
-      <Card>
+    <Space direction="vertical" size={12} style={{ width: '100%' }} className="annot-filinglist-rule-page">
+      <Card className="annot-filinglist-filter-main">
         <Form form={form} layout="horizontal" labelAlign="right" colon={false}>
           <div className="app-filter-row">
             <div className="app-filter-grid">
-              <Form.Item className="app-filter-item" name="groupName" label="集团">
-                <Select placeholder="请选择" allowClear options={GROUP_OPTIONS} />
+              <Form.Item className="app-filter-item" label="集团">
+                <Input value={CURRENT_GROUP_NAME} disabled />
               </Form.Item>
               <Form.Item className="app-filter-item" label="经销商">
                 <Input value={CURRENT_DEALER_NAME} disabled />
@@ -174,6 +183,16 @@ export default function MajorCustomerFilingListPage() {
                   placeholder="请选择"
                   allowClear
                   options={FILING_STATUS_OPTIONS.filter(o => o.value !== 'all')}
+                />
+              </Form.Item>
+              <Form.Item className="app-filter-item" name="involveRemote" label="是否异地收货">
+                <Select
+                  placeholder="请选择"
+                  allowClear
+                  options={[
+                    { value: 'yes', label: '是' },
+                    { value: 'no', label: '否' },
+                  ]}
                 />
               </Form.Item>
             </div>
@@ -201,12 +220,12 @@ export default function MajorCustomerFilingListPage() {
         title="大客户备案列表"
         extra={
           <Space size={semanticTokens.size.buttonGap}>
-            <Space className="app-table-actions" size={semanticTokens.size.buttonGap}>
+            <Space className="app-table-actions annot-filinglist-action-toolbar" size={semanticTokens.size.buttonGap}>
               <Button type="primary" danger onClick={handleBatchCancel}>取消</Button>
               <Button className="app-btn-secondary" icon={<DownloadOutlined />} onClick={() => message.success('导出成功')}>
                 导出
               </Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/vehicle/purchase/filings/create')}>
+              <Button type="primary" className="annot-filinglist-action-add" icon={<PlusOutlined />} onClick={() => navigate('/vehicle/purchase/filings/create')}>
                 新增
               </Button>
               <Button className="app-btn-tertiary" icon={<ReloadOutlined />} onClick={applyQuery}>刷新</Button>

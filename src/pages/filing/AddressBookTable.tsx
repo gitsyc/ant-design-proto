@@ -41,7 +41,7 @@ export default function AddressBookTable({
   }
 
   return (
-    <>
+    <div className="annot-filingform-field-addressbook">
       <div className="app-section-bar">
         <div className="app-section-title">异地收货地址</div>
         {!readOnly && (
@@ -54,6 +54,7 @@ export default function AddressBookTable({
         )}
       </div>
       <Table
+        className="annot-filingform-rule-addressbook"
         rowKey="id"
         size="small"
         pagination={false}
@@ -124,6 +125,6 @@ export default function AddressBookTable({
           },
         ]}
       />
-    </>
+    </div>
   )
 }

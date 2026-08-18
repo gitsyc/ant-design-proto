@@ -71,7 +71,7 @@ export default function MajorCustomerFilingFormPage() {
     // 被任一车型分配引用的地址不可删除
     const referenced = vehicles.some(v => v.allocations.some(al => al.addressId === id))
     if (referenced) {
-      message.error('该地址已被车型异地发运分配引用，请先移除相关分配')
+      message.error('该地址已被车型异地收货分配引用，请先移除相关分配')
       return
     }
     setAddressBook(prev => prev.filter(a => a.id !== id))
@@ -87,7 +87,7 @@ export default function MajorCustomerFilingFormPage() {
     setVehicles(prev =>
       prev.map(v =>
         v.key === vKey
-          ? { ...v, allocations: [...v.allocations, { key: uid(), addressId: '', approvedQty: 1 }] }
+          ? { ...v, allocations: [...v.allocations, { key: uid(), addressId: '', approvedQty: 1, usedQty: 0 }] }
           : v
       )
     )
@@ -123,11 +123,11 @@ export default function MajorCustomerFilingFormPage() {
       if (!v.series || !v.model) return '请完整填写车辆明细的车系与车型'
       if (!v.quantity || v.quantity <= 0) return '车辆明细数量须为正整数'
       if (v.involveRemote) {
-        if (v.allocations.length === 0) return `请为涉及异地发运的车型「${v.model || '未命名'}」至少录入一条异地发运分配`
+        if (v.allocations.length === 0) return `请为涉及异地收货的车型「${v.model || '未命名'}」至少录入一条异地收货分配`
         const addrIdSet = new Set<string>()
         let sum = 0
         for (const al of v.allocations) {
-          if (!al.addressId || !findAddress(al.addressId)) return `请为车型「${v.model}」的异地发运分配选择收货地址`
+          if (!al.addressId || !findAddress(al.addressId)) return `请为车型「${v.model}」的异地收货分配选择收货地址`
           if (addrIdSet.has(al.addressId)) return `车型「${v.model}」下的收货地址已存在，请勿重复录入`
           addrIdSet.add(al.addressId)
           if (!al.approvedQty || al.approvedQty <= 0) return '请输入有效的正整数核定发车数量'
@@ -194,9 +194,9 @@ export default function MajorCustomerFilingFormPage() {
   return (
     <Space direction="vertical" size={semanticTokens.size.buttonGap} style={{ width: '100%' }}>
       <Card
-        title={existing ? (readOnly ? '查看大客户备案' : '编辑大客户备案') : '新增大客户备案'}
+        title={<span className="annot-filingform-rule-statusflow">{existing ? (readOnly ? '查看大客户备案' : '编辑大客户备案') : '新增大客户备案'}</span>}
         extra={
-          <Space className="app-page-actions" size={8}>
+          <Space className="app-page-actions annot-filingform-action-topbar" size={8}>
             {existing && <Tag color={FILING_STATUS_COLOR[existing.status]}>{existing.status}</Tag>}
             <Button type="primary" icon={<ReloadOutlined />} onClick={handleRefresh}>刷新</Button>
             {!readOnly && <Button type="primary" onClick={() => handleSubmit(false)}>保存</Button>}
@@ -223,7 +223,7 @@ export default function MajorCustomerFilingFormPage() {
         >
           {/* 基本信息 */}
           <div className="app-section-title" style={{ margin: '4px 0 12px' }}>基本信息</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          <div className="annot-filingform-field-basicinfo" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
             <Form.Item name="dealerName" label="经销商名称">
               <Input disabled />
             </Form.Item>
@@ -250,7 +250,7 @@ export default function MajorCustomerFilingFormPage() {
             </Form.Item>
           </div>
           <div style={{ marginBottom: 8, color: semanticTokens.color.filterLabelText, fontSize: 12 }}>
-            是否涉及异地发运在车辆明细中按车型逐行标识；任一车型涉及异地发运时，该备案即视为涉及异地发运。
+            是否涉及异地收货在车辆明细中按车型逐行标识；任一车型涉及异地收货时，该备案即视为涉及异地收货。
           </div>
 
           {/* 附件：标签左、上传附件链接右，纵向排列 */}
@@ -290,7 +290,7 @@ export default function MajorCustomerFilingFormPage() {
             )}
           </div>
           <Table
-            className="app-vehicle-table"
+            className="app-vehicle-table annot-filingform-field-vehicletable"
             rowKey="key"
             dataSource={vehicles}
             pagination={false}
@@ -368,7 +368,7 @@ export default function MajorCustomerFilingFormPage() {
               },
               { title: '已用数量', dataIndex: 'usedQty', width: 90 },
               {
-                title: '是否涉及异地发运',
+                title: '是否涉及异地收货',
                 dataIndex: 'involveRemote',
                 width: 160,
                 render: (val: boolean, r: VehicleDetail) => (
@@ -394,6 +394,7 @@ export default function MajorCustomerFilingFormPage() {
               rowExpandable: (r: VehicleDetail) => r.involveRemote,
               expandedRowRender: (r: VehicleDetail) => (
                 <div
+                  className="annot-filingform-field-remoteallocation"
                   style={{
                     margin: '4px 0 12px 48px',
                     padding: '10px 12px 12px',
@@ -405,7 +406,7 @@ export default function MajorCustomerFilingFormPage() {
                 >
                   <div className="app-section-bar" style={{ margin: '0 0 8px' }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: '#5a6b87' }}>
-                      异地发运分配 · 车型「{r.model || '未命名'}」
+                      异地收货分配 · 车型「{r.model || '未命名'}」
                       <span style={{ fontWeight: 400, marginLeft: 6 }}>
                         （从地址簿选地址，各地址核定数之和不超过车型数量 {r.quantity}）
                       </span>
@@ -417,7 +418,7 @@ export default function MajorCustomerFilingFormPage() {
                     )}
                   </div>
                   <Table
-                    className="app-subtable"
+                    className="app-subtable annot-filingform-rule-remoteallocation"
                     rowKey="key"
                     size="small"
                     pagination={false}
@@ -463,6 +464,12 @@ export default function MajorCustomerFilingFormPage() {
                         ),
                       },
                       {
+                        title: '已用数量',
+                        dataIndex: 'usedQty',
+                        width: 90,
+                        render: (val: number) => val ?? 0,
+                      },
+                      {
                         title: '操作',
                         width: 80,
                         render: (_: unknown, a: RemoteAllocation) => (
@@ -480,7 +487,7 @@ export default function MajorCustomerFilingFormPage() {
 
           {/* 签批表：与附件一致，用上传附件链接 */}
           <div className="app-section-title">签批表</div>
-          <div className="app-attach-row">
+          <div className="app-attach-row annot-filingform-field-attachments">
             <Upload beforeUpload={() => false} disabled={readOnly}>
               <a className="app-upload-link"><CloudUploadOutlined /> 上传附件</a>
             </Upload>
@@ -490,6 +497,7 @@ export default function MajorCustomerFilingFormPage() {
           {/* 审批记录：新增时也展示空表 */}
           <div id="approvals" className="app-section-title">审批记录</div>
           <Table
+            className="annot-filingform-field-approvals"
             rowKey="key"
             size="small"
             pagination={false}

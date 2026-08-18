@@ -162,12 +162,12 @@ export default function PurchaseOrderCreatePage() {
 
   const remoteHint =
     !project || !model
-      ? '请先选择大客户项目和配置名称，系统按该车型在备案中是否涉及异地发运判定'
+      ? '请先选择大客户项目和配置名称，系统按该车型在备案中是否涉及异地收货判定'
       : remoteMode === 'optional'
-        ? `该车型部分异地发运（备案核定异地 ${modelInfo?.remoteApprovedSum}／需求 ${modelInfo?.totalQty}），可选择本单是否异地发车`
+        ? `该车型部分异地收货（备案核定异地 ${modelInfo?.remoteApprovedSum}／需求 ${modelInfo?.totalQty}），可选择本单是否异地发车`
         : remoteMode === 'forced-yes'
-          ? '该车型备案全部异地发运，本单固定为异地发车'
-          : '该车型备案未涉及异地发运，本单不异地发车'
+          ? '该车型备案全部异地收货，本单固定为异地发车'
+          : '该车型备案未涉及异地收货，本单不异地发车'
 
   const grid4 = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 } as const
 
@@ -192,7 +192,7 @@ export default function PurchaseOrderCreatePage() {
         >
           {/* 订单信息 */}
           <div style={{ margin: '4px 0 12px', fontWeight: 600, borderLeft: '3px solid #1677ff', paddingLeft: 8 }}>订单信息</div>
-          <div style={grid4}>
+          <div style={grid4} className="annot-ordercreate-field-order-info">
             <StaticField label="经销商代码" value="FCBTEST004" required />
             <StaticField label="经销商名称" value="杭州方程豹汽车销售有限公司" required />
             <Form.Item name="orderMode" label="订单方式" required initialValue="普通">
@@ -272,7 +272,7 @@ export default function PurchaseOrderCreatePage() {
             <AutoField name="option8" label="选装8" />
             <AutoField name="option9" label="选装9" />
             <AutoField name="option6" label="选装6" />
-            <Form.Item name="isMajor" label="是否大客户" required>
+            <Form.Item name="isMajor" label="是否大客户" required className="annot-ordercreate-rule-major-customer">
               <Select
                 options={[{ value: '是', label: '是' }, { value: '否', label: '否' }]}
                 onChange={v => onMajorChange(v as '是' | '否')}
@@ -292,7 +292,7 @@ export default function PurchaseOrderCreatePage() {
                 <Form.Item name="customerNo" label="大客户编号" required>
                   <Input value={customerNo} placeholder="选择项目后自动带出" disabled />
                 </Form.Item>
-                <Form.Item label="是否异地发车" required extra={remoteHint}>
+                <Form.Item label="是否异地发车" required extra={remoteHint} className="annot-ordercreate-rule-remote-dispatch">
                   <Select
                     value={remoteDisplay}
                     disabled={!project || !model || !remoteEditable}
@@ -309,7 +309,7 @@ export default function PurchaseOrderCreatePage() {
           {/* 收货信息 */}
           <div style={{ margin: '16px 0 12px', fontWeight: 600, borderLeft: '3px solid #1677ff', paddingLeft: 8 }}>收货信息</div>
           {showRemote ? (
-            <div style={grid4}>
+            <div style={grid4} className="annot-ordercreate-field-receiving-info">
               <StaticField label="发货方式" value="船运" required />
               {addresses.length > 1 && (
                 <Form.Item label="异地收货地址" required extra="该车型备案有多个收货地址，请选择">
@@ -327,13 +327,13 @@ export default function PurchaseOrderCreatePage() {
               <StaticField label="手机号" value={selectedAddr?.mobile} />
               <StaticField label="固定电话" value={selectedAddr?.landline} />
               {selectedAddr && (
-                <Form.Item label="发车数量校验" extra={`本组合剩余可发 ${remain} 台`}>
+                <Form.Item label="发车数量校验" extra={`本组合剩余可发 ${remain} 台`} className="annot-ordercreate-rule-qty-check">
                   <Input value={`本单采购 ${qty ?? 0} 台`} disabled />
                 </Form.Item>
               )}
             </div>
           ) : (
-            <div style={grid4}>
+            <div style={grid4} className="annot-ordercreate-field-receiving-info">
               <Form.Item name="deliveryType" label="发货方式" required>
                 <Select placeholder="请选择" options={[{ value: '船运', label: '船运' }, { value: '陆运', label: '陆运' }]} />
               </Form.Item>

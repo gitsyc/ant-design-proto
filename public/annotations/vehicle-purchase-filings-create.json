@@ -1,0 +1,127 @@
+{
+  "page": "/vehicle/purchase/filings/create",
+  "title": "大客户备案-表单页",
+  "updatedAt": "2026-08-13",
+  "annotations": [
+    {
+      "id": "annot-filingform-field-basicinfo",
+      "type": "selector",
+      "selector": ".annot-filingform-field-basicinfo",
+      "position": { "x": 0, "y": 0 },
+      "title": "基本信息区字段说明",
+      "content": "| 字段 | 类型 | 必填 | 说明 |\n|---|---|---|---|\n| 经销商名称 | 只读 | - | 登录经销商上下文带入，始终只读 |\n| 经销商编码 | 只读 | - | 同上 |\n| 网络 | 只读 | - | 固定展示所属网络 |\n| 大客户项目 | 文本(≤50) | 是 | 备案以项目为单位 |\n| 大客户编号 | 只读 | - | 系统自动生成唯一编号，不可手工录入；新建时为空 |\n| 交期截止 | 日期选择 | 是 | 占位\"请选择日期\" |\n| CRM单据编号 | 只读 | - | 同步CRM后由CRM返回并自动填入，同步前为空 |\n| 备注 | 文本(≤100) | 否 | - |\n\n是否涉及异地收货在车辆明细中按车型逐行标识，不在基本信息统一设置。",
+      "category": "field",
+      "source": "SRS 3.5.1（二）备案信息录入",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filingform-field-attachments",
+      "type": "selector",
+      "selector": ".annot-filingform-field-attachments",
+      "position": { "x": 0, "y": 0 },
+      "title": "附件上传说明",
+      "content": "| 附件 | 必填 | 说明 |\n|---|---|---|\n| 大客户营业执照 | 是 | 最多1个 |\n| 大客户合同 | 是 | 最多1个 |\n| 签批表 | 否 | 仅大客户区域经理审批节点可上传，随备案单归档 |\n\n营业执照或合同未上传时阻止保存/提交，提示\"请上传大客户营业执照和大客户合同\"。",
+      "category": "field",
+      "source": "SRS 3.5.1（二）备案信息录入-附件 + 签批表上传 + 边界与异常",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filingform-action-topbar",
+      "type": "selector",
+      "selector": ".annot-filingform-action-topbar",
+      "position": { "x": 0, "y": 0 },
+      "title": "页面操作（刷新/保存/提交/退出）",
+      "content": "- 刷新：重新获取当前备案最新数据。\n- 保存：保存并自动同步CRM。成功→已保存并自动填入CRM单据编号，提示\"保存成功，已同步至CRM\"；失败→同步失败，提示\"保存成功，但同步CRM失败，可稍后重试同步\"。已有CRM编号的备案再次保存复用编号、不重新生成。\n- 提交：仅已保存状态可执行，送入审批流程→审核中，提示\"提交成功，备案已进入审批流程\"。\n- 退出：不保存返回列表。\n- 重试同步：仅同步失败状态展示，重新发起CRM同步，成功转已保存。",
+      "category": "action",
+      "source": "SRS 3.5.1（二）备案信息录入-操作 + 业务规则",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filingform-rule-statusflow",
+      "type": "selector",
+      "selector": ".annot-filingform-rule-statusflow",
+      "position": { "x": 0, "y": 0 },
+      "title": "备案状态流转与可编辑规则",
+      "content": "状态枚举：已保存/审核中/审核驳回/已审核/同步失败/已取消。\n\n流转：保存且同步成功→已保存；同步失败→同步失败；已保存提交→审核中→（各级含条件三方科通过）已审核／（任一驳回）审核驳回；审核驳回可修改并保存后重提，或取消→已取消。\n\n可编辑：已保存/审核驳回/同步失败可编辑；审核中/已审核/已取消只读。可提交：仅已保存。",
+      "category": "rule",
+      "source": "SRS 3.5.1（二）多级审批 + 业务规则",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filingform-field-addressbook",
+      "type": "selector",
+      "selector": ".annot-filingform-field-addressbook",
+      "position": { "x": 0, "y": 0 },
+      "title": "异地收货地址簿字段说明",
+      "content": "| 字段 | 类型 | 必填 | 说明 |\n|---|---|---|---|\n| 省市区 | 级联选择 | 是 | 省/市/区三级联动 |\n| 详细地址 | 文本(≤100) | 是 | 同一备案内\"省市区+详细地址\"不可重复 |\n| 联系人 | 文本(≤50) | 否 | - |\n| 手机号 | 文本(11位) | 否 | - |\n| 固定电话 | 文本(≤20) | 否 | 区号-号码 |\n\n备案维护一份地址簿，每个地址录入一次并赋稳定标识，多个车型统一引用、不重复录入；随备案单提交归档，支持添加/批量删除。",
+      "category": "field",
+      "source": "SRS 3.5.1（二）异地收货备案-地址簿",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filingform-rule-addressbook",
+      "type": "selector",
+      "selector": ".annot-filingform-rule-addressbook",
+      "position": { "x": 0, "y": 0 },
+      "title": "异地收货地址簿业务规则",
+      "content": "- 地址（省市区+详细地址）重复录入 → 阻止，提示\"该异地收货地址已存在于地址簿，请勿重复录入\"。\n- 删除被车型异地收货分配引用的地址 → 阻止，提示\"该地址已被车型异地收货分配引用，请先移除相关分配\"。\n- 存在涉及异地收货的车型但地址簿为空时提交 → 阻止，提示\"请先在异地收货地址簿中录入收货地址\"。\n- 未勾选即删除 → 提示\"请先勾选要删除的异地收货地址\"。",
+      "category": "rule",
+      "source": "SRS 3.5.1（二）业务规则 + 边界与异常",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filingform-field-vehicletable",
+      "type": "selector",
+      "selector": ".annot-filingform-field-vehicletable",
+      "position": { "x": 0, "y": 0 },
+      "title": "车辆明细主表字段说明",
+      "content": "| 字段 | 类型 | 必填 | 说明 |\n|---|---|---|---|\n| 车系 | 选择 | 是 | 车型基础数据 |\n| 车系编码 | 只读 | - | 选车型后自动带出 |\n| 车型编码 | 只读 | - | 选车型后自动带出 |\n| 车型 | 选择 | 是 | 所选车系下车型 |\n| 数量 | 数字 | 是 | 正整数，该车型需求数量 |\n| 已用数量 | 只读 | - | 系统统计（由采购订单占用更新，本模块不写入） |\n| 是否涉及异地收货 | 单选 | - | 逐行标识；选\"是\"可展开异地收货分配；切\"否\"清空该车型已有分配 |\n\n支持添加/批量删除；车型与数量仅在此录入一次。",
+      "category": "field",
+      "source": "SRS 3.5.1（二）备案信息录入-车辆明细",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filingform-field-remoteallocation",
+      "type": "selector",
+      "selector": ".annot-filingform-field-remoteallocation",
+      "position": { "x": 0, "y": 0 },
+      "title": "车型异地收货分配子表字段说明",
+      "content": "仅车辆明细中\"是否涉及异地收货=是\"的车型行可展开此子表。\n\n| 字段 | 类型 | 必填 | 说明 |\n|---|---|---|---|\n| 异地收货地址 | 选择 | 是 | 从地址簿选择，省市区/详细地址/联系人/手机号/固定电话随地址带出只读 |\n| 联系人/手机号/固定电话 | 只读 | - | 选地址后自动关联 |\n| 核定发车数量 | 数字 | 是 | 正整数，该车型发往该地址的可发上限 |\n\n每条分配对应一个（车型+异地收货地址）组合，其核定发车数量供采购订单选择与校验；组合以地址簿地址标识为键。",
+      "category": "field",
+      "source": "SRS 3.5.1（二）异地收货备案-车型异地收货分配",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filingform-rule-remoteallocation",
+      "type": "selector",
+      "selector": ".annot-filingform-rule-remoteallocation",
+      "position": { "x": 0, "y": 0 },
+      "title": "车型异地收货分配业务规则",
+      "content": "- 车型标识涉及异地收货但未录入任何分配 → 阻止，提示\"请为涉及异地收货的车型至少录入一条异地收货分配\"。\n- 同一车型下同一收货地址重复分配 → 阻止，提示\"该车型下的收货地址已存在，请勿重复录入\"。\n- 同一车型下各分配核定发车数量之和超过该车型需求数量 → 阻止，提示\"该车型各收货地址核定发车数量之和已超过车型需求数量\"。\n- 核定发车数量非正整数 → 阻止，提示\"请输入有效的正整数核定发车数量\"。",
+      "category": "rule",
+      "source": "SRS 3.5.1（二）业务规则",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    },
+    {
+      "id": "annot-filingform-field-approvals",
+      "type": "selector",
+      "selector": ".annot-filingform-field-approvals",
+      "position": { "x": 0, "y": 0 },
+      "title": "审批记录区字段说明",
+      "content": "| 字段 | 说明 |\n|---|---|\n| 审批人 | 系统按当前节点自动记录 |\n| 审批节点 | 如\"大客户区域经理\"\"战区总\"等 |\n| 审批时间 | 系统自动记录 |\n| 审批意见 | 审批人填写，系统归档 |\n| 下一审批节点 | 系统按流程自动计算 |\n| 下一节点审批人 | 系统按下一节点自动关联 |\n\n全部字段系统自动记录，不可编辑；无数据时显示\"暂无数据\"。新增态也展示空表。",
+      "category": "field",
+      "source": "SRS 3.5.1（二）审批记录展示 + 边界与异常",
+      "container": "page",
+      "createdAt": "2026-08-13"
+    }
+  ]
+}
