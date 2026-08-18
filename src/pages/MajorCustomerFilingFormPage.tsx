@@ -1,17 +1,19 @@
 // 大客户备案 - 新增/编辑表单页（主从结构：车辆明细行可展开异地收货地址明细）
 import { useMemo, useState } from 'react'
 import dayjs from 'dayjs'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
-  Button, Card, DatePicker, Form, Input, InputNumber, Radio, Select, Space, Table, Tag, Upload, message,
+  Button, Card, DatePicker, Form, Input, InputNumber, Modal, Radio, Select, Space, Table, Tag, Upload, message,
 } from '../ui'
-import { UploadOutlined } from '../ui/icons'
+import { CloudUploadOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined } from '../ui/icons'
 import { semanticTokens } from '../theme/tokens'
 import AddressBookTable from './filing/AddressBookTable'
 import {
   majorCustomerFilings,
   FILING_STATUS_COLOR,
   formatFullAddress,
+  VEHICLE_MODELS,
+  findVehicleModel,
   type VehicleDetail,
   type RemoteAllocation,
   type AddressBookEntry,
@@ -22,7 +24,7 @@ const uid = () => `tmp-${seedId++}`
 
 // 空车辆明细行
 const emptyVehicle = (): VehicleDetail => ({
-  key: uid(), series: '', seriesCode: '', modelCode: '', model: '', quantity: 1, usedQty: 0, involveRemote: false, allocations: [],
+  key: uid(), series: '', seriesCode: '', modelCode: '', model: '', quantity: 0, usedQty: 0, involveRemote: false, allocations: [],
 })
 
 export default function MajorCustomerFilingFormPage() {
@@ -30,10 +32,12 @@ export default function MajorCustomerFilingFormPage() {
   const location = useLocation()
   const [form] = Form.useForm()
 
-  // 编辑态：从 query 读取 key，命中则载入
-  const editingKey = useMemo(() => new URLSearchParams(location.search).get('key') ?? '', [location.search])
+  // 编辑态：从 query 读取 key；mode=view 为只读查看
+  const search = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const editingKey = search.get('key') ?? ''
   const existing = useMemo(() => majorCustomerFilings.find(f => f.key === editingKey), [editingKey])
-  const readOnly = !!existing && !['草稿', '已驳回'].includes(existing.status)
+  const viewMode = search.get('mode') === 'view'
+  const readOnly = viewMode || (!!existing && !['已保存', '审核驳回', '同步失败'].includes(existing.status))
 
   // 必填附件受控计数（原型：仅跟踪是否已上传，编辑态视为已具备）
   const [licenseCount, setLicenseCount] = useState<number>(existing ? 1 : 0)
@@ -49,6 +53,7 @@ export default function MajorCustomerFilingFormPage() {
   const [expandedKeys, setExpandedKeys] = useState<string[]>(
     existing ? existing.vehicleDetails.filter(v => v.involveRemote).map(v => v.key) : []
   )
+  const [selectedVehicleKeys, setSelectedVehicleKeys] = useState<string[]>([])
 
   // 地址簿下拉选项
   const addressOptions = addressBook.map(a => ({ value: a.id, label: formatFullAddress(a) || '（未填写地址）' }))
@@ -74,10 +79,6 @@ export default function MajorCustomerFilingFormPage() {
 
   // 车辆明细行增删改
   const addVehicle = () => setVehicles(prev => [...prev, emptyVehicle()])
-  const removeVehicle = (key: string) => {
-    setVehicles(prev => prev.filter(v => v.key !== key))
-    setExpandedKeys(prev => prev.filter(k => k !== key))
-  }
   const patchVehicle = (key: string, patch: Partial<VehicleDetail>) =>
     setVehicles(prev => prev.map(v => (v.key === key ? { ...v, ...patch } : v)))
 
@@ -154,8 +155,40 @@ export default function MajorCustomerFilingFormPage() {
       message.error(err)
       return
     }
-    message.success(isSubmit ? '提交成功，备案已进入审批流程' : '已保存草稿')
+    message.success(isSubmit ? '提交成功，备案已进入审批流程' : '保存成功，已同步至CRM')
     navigate('/vehicle/purchase/filings')
+  }
+
+  // 刷新：还原为进入页面时的数据
+  const handleRefresh = () => {
+    form.resetFields()
+    setVehicles(existing ? existing.vehicleDetails.map(v => ({ ...v, allocations: v.allocations.map(a => ({ ...a })) })) : [emptyVehicle()])
+    setAddressBook(existing ? existing.addressBook.map(a => ({ ...a })) : [])
+    setLicenseCount(existing ? 1 : 0)
+    setContractCount(existing ? 1 : 0)
+    setExpandedKeys(existing ? existing.vehicleDetails.filter(v => v.involveRemote).map(v => v.key) : [])
+    setSelectedVehicleKeys([])
+    message.success('已刷新')
+  }
+
+  const removeSelectedVehicles = () => {
+    if (selectedVehicleKeys.length === 0) {
+      message.warning('请先勾选要删除的车辆明细')
+      return
+    }
+    Modal.confirm({
+      title: '删除车辆明细',
+      content: `确认删除已选 ${selectedVehicleKeys.length} 条车辆明细？`,
+      okText: '删除',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: () => {
+        setVehicles(prev => prev.filter(v => !selectedVehicleKeys.includes(v.key)))
+        setExpandedKeys(prev => prev.filter(k => !selectedVehicleKeys.includes(k)))
+        setSelectedVehicleKeys([])
+        message.success('已删除')
+      },
+    })
   }
 
   return (
@@ -163,13 +196,12 @@ export default function MajorCustomerFilingFormPage() {
       <Card
         title={existing ? (readOnly ? '查看大客户备案' : '编辑大客户备案') : '新增大客户备案'}
         extra={
-          <Space size={semanticTokens.size.buttonGap}>
+          <Space className="app-page-actions" size={8}>
             {existing && <Tag color={FILING_STATUS_COLOR[existing.status]}>{existing.status}</Tag>}
+            <Button type="primary" icon={<ReloadOutlined />} onClick={handleRefresh}>刷新</Button>
+            {!readOnly && <Button type="primary" onClick={() => handleSubmit(false)}>保存</Button>}
             {!readOnly && <Button type="primary" onClick={() => handleSubmit(true)}>提交</Button>}
-            {!readOnly && <Button className="app-btn-secondary" onClick={() => handleSubmit(false)}>保存</Button>}
-            <Button className="app-btn-tertiary">
-              <Link to="/vehicle/purchase/filings">{readOnly ? '返回备案列表' : '退出'}</Link>
-            </Button>
+            <Button type="primary" onClick={() => navigate('/vehicle/purchase/filings')}>退出</Button>
           </Space>
         }
       >
@@ -180,7 +212,7 @@ export default function MajorCustomerFilingFormPage() {
           disabled={readOnly}
           initialValues={{
             dealerName: existing?.dealerName ?? '杭州方程豹汽车销售有限公司',
-            dealerCode: existing?.dealerCode ?? 'DLR-HZ-001',
+            dealerCode: existing?.dealerCode ?? 'FCBTEST004',
             projectName: existing?.projectName,
             customerNo: existing?.customerNo,
             deadline: existing?.deadline ? dayjs(existing.deadline) : undefined,
@@ -190,7 +222,7 @@ export default function MajorCustomerFilingFormPage() {
           }}
         >
           {/* 基本信息 */}
-          <div style={{ margin: '4px 0 12px', fontWeight: 600, borderLeft: '3px solid #1677ff', paddingLeft: 8 }}>基本信息</div>
+          <div className="app-section-title" style={{ margin: '4px 0 12px' }}>基本信息</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
             <Form.Item name="dealerName" label="经销商名称">
               <Input disabled />
@@ -221,19 +253,21 @@ export default function MajorCustomerFilingFormPage() {
             是否涉及异地发运在车辆明细中按车型逐行标识；任一车型涉及异地发运时，该备案即视为涉及异地发运。
           </div>
 
-          {/* 附件 */}
-          <div style={{ margin: '16px 0 12px', fontWeight: 600, borderLeft: '3px solid #1677ff', paddingLeft: 8 }}>附件</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-            <Form.Item label="大客户营业执照" required>
+          {/* 附件：标签左、上传附件链接右，纵向排列 */}
+          <div className="app-section-title">附件</div>
+          <div className="app-attach-list">
+            <div className="app-attach-row">
+              <span className="app-attach-label">大客户营业执照</span>
               <Upload maxCount={1} disabled={readOnly} beforeUpload={() => false} onChange={({ fileList }) => setLicenseCount(fileList.length)}>
-                <Button icon={<UploadOutlined />} disabled={readOnly}>上传营业执照</Button>
+                <a className="app-upload-link"><CloudUploadOutlined /> 上传附件</a>
               </Upload>
-            </Form.Item>
-            <Form.Item label="大客户合同" required>
+            </div>
+            <div className="app-attach-row">
+              <span className="app-attach-label">大客户合同</span>
               <Upload maxCount={1} disabled={readOnly} beforeUpload={() => false} onChange={({ fileList }) => setContractCount(fileList.length)}>
-                <Button icon={<UploadOutlined />} disabled={readOnly}>上传合同</Button>
+                <a className="app-upload-link"><CloudUploadOutlined /> 上传附件</a>
               </Upload>
-            </Form.Item>
+            </div>
           </div>
 
           {/* 异地收货地址簿（备案级，地址录一次，供车型分配引用） */}
@@ -245,30 +279,74 @@ export default function MajorCustomerFilingFormPage() {
             addAddressEntry={addAddressEntry}
           />
 
-          {/* 车辆明细（主表）+ 车型异地发运分配（从表，展开录入，引用地址簿） */}
-          <div style={{ margin: '16px 0 12px', fontWeight: 600, borderLeft: '3px solid #1677ff', paddingLeft: 8 }}>车辆明细</div>
-          <div style={{ marginBottom: 8, color: semanticTokens.color.filterLabelText, fontSize: 12 }}>
-            车型与数量在此录入一次；按车型逐行标识是否涉及异地发运，标识为"是"的车型展开从地址簿选择收货地址并录核定发车数量。
+          {/* 车辆明细：标题左、添加/删除右；勾选后点删除 */}
+          <div className="app-section-bar">
+            <div className="app-section-title" style={{ margin: 0 }}>车辆明细</div>
+            {!readOnly && (
+              <Space size={8}>
+                <Button className="app-btn-tertiary" icon={<PlusOutlined />} onClick={addVehicle}>添加</Button>
+                <Button className="app-icon-btn-danger" icon={<DeleteOutlined />} onClick={removeSelectedVehicles} />
+              </Space>
+            )}
           </div>
           <Table
+            className="app-vehicle-table"
             rowKey="key"
             dataSource={vehicles}
             pagination={false}
+            locale={{ emptyText: '暂无数据' }}
+            rowSelection={readOnly ? undefined : {
+              selectedRowKeys: selectedVehicleKeys,
+              onChange: keys => setSelectedVehicleKeys(keys as string[]),
+            }}
             columns={[
+              {
+                title: '序号',
+                width: 64,
+                align: 'center',
+                render: (_: unknown, __: VehicleDetail, index: number) => index + 1,
+              },
               {
                 title: '车系',
                 dataIndex: 'series',
-                render: (val: string, r: VehicleDetail) => (
-                  <Input value={val} placeholder="车系" disabled={readOnly}
-                    onChange={e => patchVehicle(r.key, { series: e.target.value })} />
+                render: (val: string) => (
+                  <Input value={val} placeholder="自动带出" disabled />
+                ),
+              },
+              {
+                title: '车系编码',
+                dataIndex: 'seriesCode',
+                width: 110,
+                render: (val: string) => (
+                  <Input value={val} placeholder="自动带出" disabled />
+                ),
+              },
+              {
+                title: '车型编码',
+                dataIndex: 'modelCode',
+                width: 120,
+                render: (val: string) => (
+                  <Input value={val} placeholder="自动带出" disabled />
                 ),
               },
               {
                 title: '车型',
                 dataIndex: 'model',
                 render: (val: string, r: VehicleDetail) => (
-                  <Input value={val} placeholder="车型" disabled={readOnly}
-                    onChange={e => patchVehicle(r.key, { model: e.target.value })} />
+                  <Select
+                    value={val || undefined}
+                    placeholder="请选择"
+                    disabled={readOnly}
+                    style={{ width: '100%' }}
+                    options={VEHICLE_MODELS.map(m => ({ value: m.model, label: m.model }))}
+                    onChange={model => {
+                      const found = model ? findVehicleModel(model) : undefined
+                      patchVehicle(r.key, found
+                        ? { model: found.model, modelCode: found.modelCode, series: found.series, seriesCode: found.seriesCode }
+                        : { model: '', modelCode: '', series: '', seriesCode: '' })
+                    }}
+                    allowClear
+                  />
                 ),
               },
               {
@@ -276,8 +354,16 @@ export default function MajorCustomerFilingFormPage() {
                 dataIndex: 'quantity',
                 width: 120,
                 render: (val: number, r: VehicleDetail) => (
-                  <InputNumber min={1} precision={0} value={val} style={{ width: '100%' }} disabled={readOnly}
-                    onChange={n => patchVehicle(r.key, { quantity: Number(n) || 0 })} />
+                  <InputNumber
+                    className="app-required-placeholder"
+                    min={1}
+                    precision={0}
+                    value={val > 0 ? val : null}
+                    placeholder="必填"
+                    style={{ width: '100%' }}
+                    disabled={readOnly}
+                    onChange={n => patchVehicle(r.key, { quantity: Number(n) || 0 })}
+                  />
                 ),
               },
               { title: '已用数量', dataIndex: 'usedQty', width: 90 },
@@ -291,9 +377,7 @@ export default function MajorCustomerFilingFormPage() {
                     disabled={readOnly}
                     onChange={e => {
                       const next = e.target.value as boolean
-                      // 关闭异地发运时清空该车型已录入的分配，避免残留
                       patchVehicle(r.key, next ? { involveRemote: true } : { involveRemote: false, allocations: [] })
-                      // 同步受控展开态：选"是"展开该行，选"否"收起
                       setExpandedKeys(prev => (next ? [...new Set([...prev, r.key])] : prev.filter(k => k !== r.key)))
                     }}
                     options={[
@@ -303,42 +387,34 @@ export default function MajorCustomerFilingFormPage() {
                   />
                 ),
               },
-              {
-                title: '操作',
-                width: 140,
-                render: (_: unknown, r: VehicleDetail) => (
-                  readOnly ? '-' : (
-                    <Space size={12}>
-                      {r.involveRemote && (
-                        <a onClick={() => addAllocation(r.key)}>加分配</a>
-                      )}
-                      <a onClick={() => removeVehicle(r.key)} style={{ color: semanticTokens.color.buttonDangerBg }}>删除</a>
-                    </Space>
-                  )
-                ),
-              },
             ]}
             expandable={{
-              // 受控展开态：仅涉及异地发运的车型行可展开，切"否"或删除时同步移除
               expandedRowKeys: expandedKeys,
               onExpandedRowsChange: keys => setExpandedKeys(keys as string[]),
-              // 仅该车型标识涉及异地发运时展示异地收货地址从表
               rowExpandable: (r: VehicleDetail) => r.involveRemote,
               expandedRowRender: (r: VehicleDetail) => (
                 <div
                   style={{
-                    margin: '4px 0 4px 32px',
+                    margin: '4px 0 12px 48px',
                     padding: '10px 12px 12px',
                     background: '#f5f7fa',
+                    border: '1px solid #d6e0f0',
                     borderLeft: '3px solid #1677ff',
                     borderRadius: 4,
                   }}
                 >
-                  <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 600, color: '#5a6b87' }}>
-                    ▸ 异地发运分配 · 车型「{r.model || '未命名'}」
-                    <span style={{ fontWeight: 400, marginLeft: 6 }}>
-                      （从地址簿选地址，各地址核定数之和不超过车型数量 {r.quantity}）
-                    </span>
+                  <div className="app-section-bar" style={{ margin: '0 0 8px' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#5a6b87' }}>
+                      异地发运分配 · 车型「{r.model || '未命名'}」
+                      <span style={{ fontWeight: 400, marginLeft: 6 }}>
+                        （从地址簿选地址，各地址核定数之和不超过车型数量 {r.quantity}）
+                      </span>
+                    </div>
+                    {!readOnly && (
+                      <Button className="app-btn-tertiary" size="small" icon={<PlusOutlined />} onClick={() => addAllocation(r.key)}>
+                        添加
+                      </Button>
+                    )}
                   </div>
                   <Table
                     className="app-subtable"
@@ -346,7 +422,7 @@ export default function MajorCustomerFilingFormPage() {
                     size="small"
                     pagination={false}
                     dataSource={r.allocations}
-                    locale={{ emptyText: '暂无分配，点击该车型行右侧「加分配」从地址簿选择收货地址' }}
+                    locale={{ emptyText: '暂无数据' }}
                     columns={[
                       {
                         title: '异地收货地址',
@@ -401,41 +477,34 @@ export default function MajorCustomerFilingFormPage() {
               ),
             }}
           />
-          {!readOnly && (
-            <Button className="app-btn-tertiary" style={{ marginTop: 8 }} onClick={addVehicle}>
-              + 添加车型
-            </Button>
-          )}
 
-          {/* 签批表（仅大客户区域经理审批节点上传，此处展示上传入口） */}
-          <div style={{ margin: '16px 0 12px', fontWeight: 600, borderLeft: '3px solid #1677ff', paddingLeft: 8 }}>签批表</div>
-          <Form.Item extra="仅大客户区域经理审批节点可上传，随备案单归档">
+          {/* 签批表：与附件一致，用上传附件链接 */}
+          <div className="app-section-title">签批表</div>
+          <div className="app-attach-row">
             <Upload beforeUpload={() => false} disabled={readOnly}>
-              <Button icon={<UploadOutlined />} disabled={readOnly}>上传签批表</Button>
+              <a className="app-upload-link"><CloudUploadOutlined /> 上传附件</a>
             </Upload>
-          </Form.Item>
+            <span style={{ color: semanticTokens.color.filterLabelText, fontSize: 12 }}>仅大客户区域经理审批节点可上传，随备案单归档</span>
+          </div>
 
-          {/* 审批记录 */}
-          {existing && existing.approvals.length > 0 && (
-            <>
-              <div id="approvals" style={{ margin: '16px 0 12px', fontWeight: 600, borderLeft: '3px solid #1677ff', paddingLeft: 8 }}>审批记录</div>
-              <Table
-                rowKey="key"
-                size="small"
-                pagination={false}
-                dataSource={existing.approvals}
-                columns={[
-                  { title: '审批人', dataIndex: 'approver' },
-                  { title: '审批节点', dataIndex: 'node' },
-                  { title: '审批时间', dataIndex: 'approvedAt' },
-                  { title: '审批意见', dataIndex: 'opinion' },
-                  { title: '下一审批节点', dataIndex: 'nextNode' },
-                  { title: '下一节点审批人', dataIndex: 'nextApprover' },
-                ]}
-              />
-            </>
-          )}
-
+          {/* 审批记录：新增时也展示空表 */}
+          <div id="approvals" className="app-section-title">审批记录</div>
+          <Table
+            rowKey="key"
+            size="small"
+            pagination={false}
+            dataSource={existing?.approvals ?? []}
+            locale={{ emptyText: '暂无数据' }}
+            columns={[
+              { title: '序号', width: 64, align: 'center', render: (_: unknown, __: unknown, index: number) => index + 1 },
+              { title: '审批人', dataIndex: 'approver' },
+              { title: '审批节点', dataIndex: 'node' },
+              { title: '审批时间', dataIndex: 'approvedAt' },
+              { title: '审批意见', dataIndex: 'opinion' },
+              { title: '下一审批节点', dataIndex: 'nextNode' },
+              { title: '下一节点审批人', dataIndex: 'nextApprover' },
+            ]}
+          />
         </Form>
       </Card>
     </Space>

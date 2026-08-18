@@ -1,6 +1,7 @@
-// 大客户备案 - 异地收货地址簿维护表（从 MajorCustomerFilingFormPage 抽出，保持行数约束与职责聚焦）
-import { Button, Cascader, Input, Table } from '../../ui'
-import { semanticTokens } from '../../theme/tokens'
+// 大客户备案 - 异地收货地址维护表（标题左、添加/删除右，勾选后删除）
+import { useState } from 'react'
+import { Button, Cascader, Input, Modal, Space, Table, message } from '../../ui'
+import { DeleteOutlined, PlusOutlined } from '../../ui/icons'
 import { regionOptions } from '../../data/regions'
 import type { AddressBookEntry } from '../../data/majorCustomerFilings'
 
@@ -19,19 +20,56 @@ export default function AddressBookTable({
   removeAddressEntry,
   addAddressEntry,
 }: AddressBookTableProps) {
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([])
+
+  const handleDelete = () => {
+    if (selectedKeys.length === 0) {
+      message.warning('请先勾选要删除的异地收货地址')
+      return
+    }
+    Modal.confirm({
+      title: '删除异地收货地址',
+      content: `确认删除已选 ${selectedKeys.length} 条地址？`,
+      okText: '删除',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: () => {
+        selectedKeys.forEach(id => removeAddressEntry(id))
+        setSelectedKeys([])
+      },
+    })
+  }
+
   return (
     <>
-      <div style={{ margin: '16px 0 12px', fontWeight: 600, borderLeft: '3px solid #1677ff', paddingLeft: 8 }}>异地收货地址簿</div>
-      <div style={{ marginBottom: 8, color: semanticTokens.color.filterLabelText, fontSize: 12 }}>
-        每个异地收货地址在此录入一次；车型的异地发运从这里选择地址，避免同一地址被多个车型重复录入。
+      <div className="app-section-bar">
+        <div className="app-section-title">异地收货地址</div>
+        {!readOnly && (
+          <Space size={8}>
+            <Button className="app-btn-tertiary" icon={<PlusOutlined />} onClick={addAddressEntry}>
+              添加
+            </Button>
+            <Button className="app-icon-btn-danger" icon={<DeleteOutlined />} onClick={handleDelete} />
+          </Space>
+        )}
       </div>
       <Table
         rowKey="id"
         size="small"
         pagination={false}
         dataSource={addressBook}
-        locale={{ emptyText: '暂无异地收货地址，点击下方「添加地址」录入' }}
+        locale={{ emptyText: '暂无数据' }}
+        rowSelection={readOnly ? undefined : {
+          selectedRowKeys: selectedKeys,
+          onChange: keys => setSelectedKeys(keys as string[]),
+        }}
         columns={[
+          {
+            title: '序号',
+            width: 64,
+            align: 'center',
+            render: (_: unknown, __: AddressBookEntry, index: number) => index + 1,
+          },
           {
             title: '省市区',
             width: 260,
@@ -84,22 +122,8 @@ export default function AddressBookTable({
                 onChange={e => patchAddressEntry(r.id, { landline: e.target.value })} />
             ),
           },
-          {
-            title: '操作',
-            width: 70,
-            render: (_: unknown, r: AddressBookEntry) => (
-              readOnly ? '-' : (
-                <a onClick={() => removeAddressEntry(r.id)} style={{ color: semanticTokens.color.buttonDangerBg }}>删除</a>
-              )
-            ),
-          },
         ]}
       />
-      {!readOnly && (
-        <Button className="app-btn-tertiary" style={{ marginTop: 8, marginBottom: 16 }} onClick={addAddressEntry}>
-          + 添加地址
-        </Button>
-      )}
     </>
   )
 }

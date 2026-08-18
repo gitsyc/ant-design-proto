@@ -1,7 +1,13 @@
 import { useEffect, type ReactNode } from 'react'
 import { App as AntdApp, ConfigProvider, theme } from 'antd'
+import zhCN from 'antd/locale/zh_CN'
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
 import { antdTheme } from './antdTheme'
 import { semanticTokens } from './tokens'
+
+// 日期面板（星期、月份、「今天」等）依赖 dayjs 语言包；占位符依赖 antd locale
+dayjs.locale('zh-cn')
 
 export function AppThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
@@ -44,7 +50,7 @@ export function AppThemeProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <ConfigProvider theme={antdTheme}>
+    <ConfigProvider locale={zhCN} theme={antdTheme}>
       <AntdApp>{children}</AntdApp>
     </ConfigProvider>
   )

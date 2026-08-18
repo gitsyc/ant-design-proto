@@ -1,7 +1,7 @@
 // 大客户备案共享数据（静态原型：模块级数组，供备案列表 / 表单 / 采购订单读取）
 // 说明：车型只在车辆明细录一次；异地收货地址明细挂在车型下（主从结构）。
 
-export type FilingStatus = '草稿' | '待审批' | '审批中' | '已通过' | '已驳回' | '已取消'
+export type FilingStatus = '已保存' | '审核中' | '审核驳回' | '已审核' | '同步失败' | '已取消'
 
 // 异地收货地址簿条目（备案级，地址录一次并有稳定 id，供车型异地发运分配引用）
 export interface AddressBookEntry {
@@ -45,6 +45,25 @@ export interface VehicleDetail {
   allocations: RemoteAllocation[] // 异地发运分配（该车型涉及异地发运时录入，引用地址簿）
 }
 
+// 车型基础数据：选车型后带出车系、车系编码、车型编码
+export interface VehicleModelOption {
+  model: string
+  modelCode: string
+  series: string
+  seriesCode: string
+}
+
+export const VEHICLE_MODELS: VehicleModelOption[] = [
+  { series: '豹5', seriesCode: 'BAO5', model: '豹5 标准版', modelCode: 'BAO5-STD' },
+  { series: '豹5', seriesCode: 'BAO5', model: '豹5 长续航版', modelCode: 'BAO5-LR' },
+  { series: '豹8', seriesCode: 'BAO8', model: '豹8 旗舰版', modelCode: 'BAO8-FLAG' },
+  { series: '豹8', seriesCode: 'BAO8', model: '豹8 豪华版', modelCode: 'BAO8-LUX' },
+]
+
+export function findVehicleModel(model: string): VehicleModelOption | undefined {
+  return VEHICLE_MODELS.find(m => m.model === model)
+}
+
 // 审批记录
 export interface ApprovalRecord {
   key: string
@@ -63,6 +82,8 @@ export interface MajorCustomerFiling {
   customerNo: string // 大客户编号
   dealerName: string // 经销商名称
   dealerCode: string // 经销商编码
+  groupName: string // 集团
+  groupCode: string // 集团编码
   deadline: string // 交期截止
   network: string // 网络
   remark?: string // 备注
@@ -78,21 +99,24 @@ export interface MajorCustomerFiling {
 // 备案状态枚举（全项目统一）
 export const FILING_STATUS_OPTIONS: { value: FilingStatus | 'all'; label: string }[] = [
   { value: 'all', label: '全部' },
-  { value: '草稿', label: '草稿' },
-  { value: '待审批', label: '待审批' },
-  { value: '审批中', label: '审批中' },
-  { value: '已通过', label: '已通过' },
-  { value: '已驳回', label: '已驳回' },
+  { value: '已保存', label: '已保存' },
+  { value: '审核中', label: '审核中' },
+  { value: '审核驳回', label: '审核驳回' },
+  { value: '已审核', label: '已审核' },
+  { value: '同步失败', label: '同步失败' },
   { value: '已取消', label: '已取消' },
 ]
 
+export const GROUP_OPTIONS = [{ value: '泸州联合集团', label: '泸州联合集团' }]
+export const CURRENT_DEALER_NAME = '杭州方程豹汽车销售有限公司'
+
 // 状态标签颜色映射
 export const FILING_STATUS_COLOR: Record<FilingStatus, string> = {
-  草稿: 'default',
-  待审批: 'processing',
-  审批中: 'processing',
-  已通过: 'success',
-  已驳回: 'error',
+  已保存: 'default',
+  审核中: 'processing',
+  已审核: 'success',
+  审核驳回: 'error',
+  同步失败: 'warning',
   已取消: 'default',
 }
 
@@ -103,12 +127,14 @@ export const majorCustomerFilings: MajorCustomerFiling[] = [
     projectName: '成渝物流集团采购项目',
     customerNo: 'KH-CQ-0001',
     dealerName: '杭州方程豹汽车销售有限公司',
-    dealerCode: 'DLR-HZ-001',
+    dealerCode: 'FCBTEST004',
+    groupName: '泸州联合集团',
+    groupCode: 'BYDJXSJT0202',
     deadline: '2026-09-30',
     network: '方程豹',
     remark: '分批发往成都、重庆两地',
     crmNo: 'CRM-20260801-8801',
-    status: '已通过',
+    status: '已审核',
     createdBy: '张磊',
     createdAt: '2026-08-01 10:20',
     addressBook: [
@@ -158,12 +184,14 @@ export const majorCustomerFilings: MajorCustomerFiling[] = [
     projectName: '西部租赁大客户项目',
     customerNo: 'KH-XB-0002',
     dealerName: '杭州方程豹汽车销售有限公司',
-    dealerCode: 'DLR-HZ-001',
+    dealerCode: 'FCBTEST004',
+    groupName: '泸州联合集团',
+    groupCode: 'BYDJXSJT0202',
     deadline: '2026-10-15',
     network: '方程豹',
     remark: '',
     crmNo: 'CRM-20260805-8815',
-    status: '待审批',
+    status: '审核中',
     createdBy: '张磊',
     createdAt: '2026-08-05 11:00',
     addressBook: [],
@@ -177,12 +205,14 @@ export const majorCustomerFilings: MajorCustomerFiling[] = [
     projectName: '云南文旅接驳项目',
     customerNo: 'KH-YN-0003',
     dealerName: '杭州方程豹汽车销售有限公司',
-    dealerCode: 'DLR-HZ-001',
+    dealerCode: 'FCBTEST004',
+    groupName: '泸州联合集团',
+    groupCode: 'BYDJXSJT0202',
     deadline: '2026-11-01',
     network: '方程豹',
     remark: '需异地发往昆明',
     crmNo: '',
-    status: '已驳回',
+    status: '同步失败',
     createdBy: '张磊',
     createdAt: '2026-08-06 15:40',
     addressBook: [
@@ -207,6 +237,27 @@ export const majorCustomerFilings: MajorCustomerFiling[] = [
       { key: 'r1', approver: '陈区域', node: '大客户区域经理', approvedAt: '2026-08-07 09:15', opinion: '合同金额与备案数量不符，退回补充', nextNode: '-', nextApprover: '-' },
     ],
   },
+  {
+    key: 'MCF-20260810-0004',
+    projectName: '测试0713',
+    customerNo: 'BC-20260810-00004',
+    dealerName: '杭州方程豹汽车销售有限公司',
+    dealerCode: 'FCBTEST004',
+    groupName: '泸州联合集团',
+    groupCode: 'BYDJXSJT0202',
+    deadline: '2026-08-31',
+    network: '方程豹',
+    remark: '',
+    crmNo: '',
+    status: '已保存',
+    createdBy: '张磊',
+    createdAt: '2026-08-10 09:00',
+    addressBook: [],
+    vehicleDetails: [
+      { key: 'v1', series: '豹5', seriesCode: 'BAO5', modelCode: 'BAO5-STD', model: '豹5 标准版', quantity: 2, usedQty: 0, involveRemote: false, allocations: [] },
+    ],
+    approvals: [],
+  },
 ]
 
 // 备案是否涉及异地发运：派生自车辆明细（任一车型涉及即为是）
@@ -214,10 +265,10 @@ export function isFilingRemote(filing: MajorCustomerFiling): boolean {
   return filing.vehicleDetails.some(v => v.involveRemote)
 }
 
-// 已通过备案的大客户项目（供采购订单关联选择）
+// 已审核备案的大客户项目（供采购订单关联选择）
 export function getApprovedProjects(): { value: string; label: string; customerNo: string }[] {
   return majorCustomerFilings
-    .filter(f => f.status === '已通过')
+    .filter(f => f.status === '已审核')
     .map(f => ({ value: f.projectName, label: `${f.projectName}（${f.customerNo}）`, customerNo: f.customerNo }))
 }
 
@@ -246,15 +297,16 @@ export interface RemoteAddressOption {
 // 某大客户项目下每个车型的异地发运信息（供采购订单车型选择后判定是否异地发车与加载地址）
 export interface ProjectModelInfo {
   model: string
+  modelCode: string
   totalQty: number // 备案需求数量
   remoteApprovedSum: number // 各异地地址核定发车数量之和
   remoteMode: RemoteMode
   addresses: RemoteAddressOption[] // 该车型的异地收货地址（forced-no 时为空）
 }
 
-// 提取某已通过备案大客户项目下的车型异地发运信息（按 projectName 匹配）
+// 提取某已审核备案大客户项目下的车型异地发运信息（按 projectName 匹配）
 export function getProjectModels(projectName: string): ProjectModelInfo[] {
-  const filing = majorCustomerFilings.find(f => f.status === '已通过' && f.projectName === projectName)
+  const filing = majorCustomerFilings.find(f => f.status === '已审核' && f.projectName === projectName)
   if (!filing) return []
   const addrMap = new Map(filing.addressBook.map(a => [a.id, a]))
   return filing.vehicleDetails.map(v => {
@@ -287,6 +339,14 @@ export function getProjectModels(projectName: string): ProjectModelInfo[] {
     if (addresses.length === 0) remoteMode = 'forced-no'
     else if (remoteApprovedSum >= v.quantity) remoteMode = 'forced-yes'
     else remoteMode = 'optional'
-    return { model: v.model, totalQty: v.quantity, remoteApprovedSum, remoteMode, addresses }
+    return { model: v.model, modelCode: v.modelCode, totalQty: v.quantity, remoteApprovedSum, remoteMode, addresses }
   })
+}
+
+/** 按车型名称或车型编码匹配备案中该车型的异地发运配置 */
+export function findProjectModel(projectName: string, modelName?: string, modelCode?: string): ProjectModelInfo | undefined {
+  if (!projectName || (!modelName && !modelCode)) return undefined
+  return getProjectModels(projectName).find(m =>
+    (!!modelName && m.model === modelName) || (!!modelCode && m.modelCode === modelCode),
+  )
 }

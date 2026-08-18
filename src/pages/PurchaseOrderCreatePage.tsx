@@ -6,11 +6,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Button, Card, Form, Input, InputNumber, Select, Space, message } from '../ui'
 import { semanticTokens } from '../theme/tokens'
 import {
+  findProjectModel,
   getApprovedProjects,
   getProjectModels,
   type ProjectModelInfo,
   type RemoteMode,
 } from '../data/majorCustomerFilings'
+import { VEHICLE_CONFIGS, configToFormFields, emptyConfigFields, findVehicleConfig } from '../data/vehicleConfigs'
 
 function useSalesOrderNoFromSearch() {
   const location = useLocation()
@@ -22,6 +24,14 @@ function StaticField({ label, value, required }: { label: string; value?: string
   return (
     <Form.Item label={label} required={required}>
       <Input value={value ?? ''} placeholder="-" disabled />
+    </Form.Item>
+  )
+}
+
+function AutoField({ name, label, required }: { name: string; label: string; required?: boolean }) {
+  return (
+    <Form.Item name={name} label={label} required={required}>
+      <Input placeholder="自动带出" disabled />
     </Form.Item>
   )
 }
@@ -38,20 +48,34 @@ export default function PurchaseOrderCreatePage() {
   const [remoteDispatch, setRemoteDispatch] = useState<'是' | '否'>('否')
   const [addressId, setAddressId] = useState<string>('')
   const [qty, setQty] = useState<number | null>(null)
+  const payType = Form.useWatch('payType', form)
+  const modelCode = Form.useWatch('modelCode', form) as string | undefined
 
   const projects = useMemo(() => getApprovedProjects(), [])
   const projectModels = useMemo<ProjectModelInfo[]>(() => (project ? getProjectModels(project) : []), [project])
-  const modelOptions = useMemo(() => projectModels.map(m => ({ value: m.model, label: m.model })), [projectModels])
-  const modelInfo = useMemo(() => projectModels.find(m => m.model === model), [projectModels, model])
+  const modelInfo = useMemo(
+    () => projectModels.find(m => m.model === model || (!!modelCode && m.modelCode === modelCode)),
+    [projectModels, model, modelCode],
+  )
   const remoteMode: RemoteMode | undefined = modelInfo?.remoteMode
   const addresses = modelInfo?.addresses ?? []
-  const selectedAddr = addresses.find(a => a.addressId === addressId)
-  const remain = selectedAddr ? selectedAddr.remain : 0
-  const showRemote = isMajor === '是' && remoteDispatch === '是'
-
-  // 依据车型的异地发运模式推导「是否异地发车」取值与是否可选
   const remoteEditable = remoteMode === 'optional'
   const remoteValueFor = (mode: RemoteMode | undefined): '是' | '否' => (mode === 'forced-yes' ? '是' : '否')
+  const remoteDisplay: '是' | '否' = remoteMode === 'forced-yes' ? '是' : remoteMode === 'optional' ? remoteDispatch : '否'
+  const showRemote = isMajor === '是' && remoteDisplay === '是'
+  const effectiveAddressId =
+    remoteDisplay !== '是' ? '' : addressId || (addresses.length === 1 ? addresses[0].addressId : '')
+  const selectedAddr = addresses.find(a => a.addressId === effectiveAddressId)
+  const remain = selectedAddr ? selectedAddr.remain : 0
+
+  const applyRemoteFromFiling = (projectName: string, modelName: string, code?: string) => {
+    setModel(modelName)
+    const info = findProjectModel(projectName, modelName, code)
+    const rd = remoteValueFor(info?.remoteMode)
+    setRemoteDispatch(rd)
+    const addrs = info?.addresses ?? []
+    setAddressId(rd === '是' && addrs.length === 1 ? addrs[0].addressId : '')
+  }
 
   // 切换是否大客户
   const onMajorChange = (val: '是' | '否') => {
@@ -59,37 +83,47 @@ export default function PurchaseOrderCreatePage() {
     if (val === '否') {
       setProject('')
       setCustomerNo('')
-      setModel('')
       setRemoteDispatch('否')
       setAddressId('')
-      form.setFieldsValue({ projectName: undefined, customerNo: undefined, model: undefined })
+      form.setFieldsValue({ projectName: undefined, customerNo: undefined })
+      return
     }
+    const currentModel = (form.getFieldValue('model') as string) || ''
+    if (currentModel) applyRemoteFromFiling(project, currentModel, form.getFieldValue('modelCode'))
   }
 
-  // 选中大客户项目：带出大客户编号，重置车型及下级
+  // 选中大客户项目：带出大客户编号；按备案中该车型重算是否异地发车（须传入新项目名，避免闭包旧值）
   const onProjectChange = (val: string) => {
     setProject(val)
-    const p = projects.find(p => p.value === val)
+    const p = projects.find(item => item.value === val)
     setCustomerNo(p?.customerNo ?? '')
-    setModel('')
-    setRemoteDispatch('否')
-    setAddressId('')
-    form.setFieldsValue({ customerNo: p?.customerNo, model: undefined })
-  }
-
-  // 选中车型：按备案配置定「是否异地发车」，异地时若唯一地址自动带出
-  const onModelChange = (val: string) => {
-    setModel(val)
-    const info = getProjectModels(project).find(m => m.model === val)
-    const rd = remoteValueFor(info?.remoteMode)
-    setRemoteDispatch(rd)
-    const addrs = info?.addresses ?? []
-    setAddressId(rd === '是' && addrs.length === 1 ? addrs[0].addressId : '')
+    form.setFieldsValue({ customerNo: p?.customerNo })
+    const currentModel = (form.getFieldValue('model') as string) || ''
+    if (currentModel) applyRemoteFromFiling(val, currentModel, form.getFieldValue('modelCode'))
+    else {
+      setRemoteDispatch('否')
+      setAddressId('')
+    }
   }
 
   const onRemoteDispatchChange = (val: '是' | '否') => {
     setRemoteDispatch(val)
     setAddressId(val === '是' && addresses.length === 1 ? addresses[0].addressId : '')
+  }
+
+  // 选配置名称：带出配置代码、车系、车型、内饰/外饰/产地、轮毂、时空光翼、选装（只读）
+  const onConfigChange = (name: string | undefined) => {
+    const cfg = name ? findVehicleConfig(name) : undefined
+    form.setFieldsValue(cfg ? configToFormFields(cfg) : emptyConfigFields())
+    const nextModel = cfg?.modelName ?? ''
+    if (isMajor === '是' && nextModel) applyRemoteFromFiling(project, nextModel, cfg?.modelCode)
+    else {
+      setModel(nextModel)
+      if (isMajor === '是') {
+        setRemoteDispatch('否')
+        setAddressId('')
+      }
+    }
   }
 
   const handleSubmit = async () => {
@@ -104,14 +138,14 @@ export default function PurchaseOrderCreatePage() {
     }
     if (isMajor === '是') {
       if (!project) {
-        message.error('请先选择已完成备案的大客户项目')
+        message.error('请先选择已审核通过的大客户项目备案')
         return
       }
       if (!model) {
         message.error('请选择车型')
         return
       }
-      if (remoteDispatch === '是') {
+      if (remoteDisplay === '是') {
         if (!selectedAddr) {
           message.error('请选择异地收货地址')
           return
@@ -127,13 +161,13 @@ export default function PurchaseOrderCreatePage() {
   }
 
   const remoteHint =
-    remoteMode === 'optional'
-      ? `该车型部分异地发运（备案核定异地 ${modelInfo?.remoteApprovedSum}／需求 ${modelInfo?.totalQty}），可选择本单是否异地发车`
-      : remoteMode === 'forced-yes'
-        ? '该车型备案全部异地发运，本单固定为异地发车'
-        : model
-          ? '该车型备案未涉及异地发运，本单不异地发车'
-          : ''
+    !project || !model
+      ? '请先选择大客户项目和配置名称，系统按该车型在备案中是否涉及异地发运判定'
+      : remoteMode === 'optional'
+        ? `该车型部分异地发运（备案核定异地 ${modelInfo?.remoteApprovedSum}／需求 ${modelInfo?.totalQty}），可选择本单是否异地发车`
+        : remoteMode === 'forced-yes'
+          ? '该车型备案全部异地发运，本单固定为异地发车'
+          : '该车型备案未涉及异地发运，本单不异地发车'
 
   const grid4 = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 } as const
 
@@ -161,27 +195,30 @@ export default function PurchaseOrderCreatePage() {
           <div style={grid4}>
             <StaticField label="经销商代码" value="FCBTEST004" required />
             <StaticField label="经销商名称" value="杭州方程豹汽车销售有限公司" required />
-            <StaticField label="订单方式" value="普通" required />
-            <StaticField label="订单用途" value="普通用车" required />
-            <StaticField label="订单类型" value="请选择" required />
-            <StaticField label="配置名称" value="zdh40551085车型" required />
-            <StaticField label="配置代码" value="zdh40551085" />
-            <StaticField label="车系代码" value="HJF001" />
-            <StaticField label="车系名称" value="测试专属车系001" />
-            <StaticField label="车型代码" value="zdh40551085" />
-            {/* 车型名称：大客户订单下从备案项目车型选择（驱动是否异地发车）；非大客户静态展示 */}
-            {isMajor === '是' ? (
-              <Form.Item name="model" label="车型名称" required extra="选择备案项目中的车型">
-                <Select
-                  placeholder={project ? (modelOptions.length ? '请选择车型' : '该项目无车型') : '请先选择大客户项目'}
-                  disabled={!project}
-                  options={modelOptions}
-                  onChange={onModelChange}
-                />
-              </Form.Item>
-            ) : (
-              <StaticField label="车型名称" value="zdh40551085" required />
-            )}
+            <Form.Item name="orderMode" label="订单方式" required initialValue="普通">
+              <Select options={[{ value: '普通', label: '普通' }, { value: '紧急', label: '紧急' }]} />
+            </Form.Item>
+            <Form.Item name="orderPurpose" label="订单用途" required initialValue="普通用车">
+              <Select options={[{ value: '普通用车', label: '普通用车' }, { value: '大客户用车', label: '大客户用车' }]} />
+            </Form.Item>
+            <Form.Item name="orderType" label="订单类型" required rules={[{ required: true, message: '请选择订单类型' }]}>
+              <Select placeholder="请选择" options={[{ value: '现货采购', label: '现货采购' }, { value: '订单采购', label: '订单采购' }]} />
+            </Form.Item>
+            <Form.Item name="configName" label="配置名称" required rules={[{ required: true, message: '请选择配置名称' }]}>
+              <Select
+                placeholder="请选择配置名称"
+                showSearch
+                allowClear
+                optionFilterProp="label"
+                options={VEHICLE_CONFIGS.map(c => ({ value: c.name, label: c.name }))}
+                onChange={v => onConfigChange(v as string | undefined)}
+              />
+            </Form.Item>
+            <AutoField name="configCode" label="配置代码" />
+            <AutoField name="seriesCode" label="车系代码" />
+            <AutoField name="seriesName" label="车系名称" />
+            <AutoField name="modelCode" label="车型代码" />
+            <AutoField name="model" label="车型名称" required />
             <Form.Item name="qty" label="采购数量" required rules={[{ required: true, message: '请录入采购数量' }]}>
               <InputNumber
                 min={1}
@@ -191,19 +228,50 @@ export default function PurchaseOrderCreatePage() {
                 onChange={n => setQty(n as number | null)}
               />
             </Form.Item>
-            <StaticField label="内饰" />
-            <StaticField label="外饰" />
-            <StaticField label="产地" />
-            <StaticField label="付款类型" value="三方" required />
-            <StaticField label="采购价" value="-" required />
-            <StaticField label="总金额" value="-" required />
-            <StaticField label="开票银行" value="兴业银行股份有限公司深圳分行" required />
-            <StaticField label="是否银企直连" value="否" required />
-            <StaticField label="汇票号" value="2030404044004" />
-          </div>
-
-          {/* 大客户信息（是否大客户=是时展示项目/编号/是否异地发车） */}
-          <div style={{ ...grid4, marginTop: 4 }}>
+            <AutoField name="interior" label="内饰" />
+            <AutoField name="exterior" label="外饰" />
+            <AutoField name="origin" label="产地" />
+            <Form.Item name="payType" label="付款类型" required rules={[{ required: true, message: '请选择付款类型' }]}>
+              <Select
+                placeholder="请选择"
+                allowClear
+                options={[{ value: '三方', label: '三方' }, { value: '全款', label: '全款' }]}
+                onChange={v => {
+                  if (v !== '三方') form.setFieldsValue({ invoiceBank: undefined, bankDirect: undefined, draftNo: undefined })
+                }}
+              />
+            </Form.Item>
+            {payType === '三方' && (
+              <>
+                <Form.Item name="invoiceBank" label="开票银行" required rules={[{ required: true, message: '请输入开票银行' }]}>
+                  <Input placeholder="请输入" />
+                </Form.Item>
+                <Form.Item name="bankDirect" label="是否银企直连" required rules={[{ required: true, message: '请选择是否银企直连' }]}>
+                  <Select placeholder="请选择" options={[{ value: '是', label: '是' }, { value: '否', label: '否' }]} />
+                </Form.Item>
+                <Form.Item name="draftNo" label="汇票号">
+                  <Input placeholder="请输入" />
+                </Form.Item>
+              </>
+            )}
+            <Form.Item name="price" label="采购价" required rules={[{ required: true, message: '请输入采购价' }]}>
+              <Input placeholder="请输入" />
+            </Form.Item>
+            <Form.Item name="amount" label="总金额" required rules={[{ required: true, message: '请输入总金额' }]}>
+              <Input placeholder="请输入" />
+            </Form.Item>
+            <AutoField name="hub" label="轮毂" />
+            <AutoField name="lightWing" label="时空光翼" />
+            <AutoField name="option1" label="选装1" />
+            <AutoField name="tire" label="轮胎" />
+            <AutoField name="option3" label="选装3" />
+            <AutoField name="option4" label="选装4" />
+            <AutoField name="option5" label="选装5" />
+            <AutoField name="option2" label="选装2" />
+            <AutoField name="option7" label="选装7" />
+            <AutoField name="option8" label="选装8" />
+            <AutoField name="option9" label="选装9" />
+            <AutoField name="option6" label="选装6" />
             <Form.Item name="isMajor" label="是否大客户" required>
               <Select
                 options={[{ value: '是', label: '是' }, { value: '否', label: '否' }]}
@@ -212,9 +280,9 @@ export default function PurchaseOrderCreatePage() {
             </Form.Item>
             {isMajor === '是' && (
               <>
-                <Form.Item name="projectName" label="大客户项目" required rules={[{ required: true, message: '请先选择已完成备案的大客户项目' }]}>
+                <Form.Item name="projectName" label="大客户项目" required rules={[{ required: true, message: '请先选择已审核通过的大客户项目备案' }]}>
                   <Select
-                    placeholder={projects.length ? '请选择已通过备案的大客户项目' : '暂无已完成备案的大客户项目'}
+                    placeholder={projects.length ? '请选择已审核备案的大客户项目' : '暂无已审核备案的大客户项目'}
                     options={projects}
                     onChange={v => onProjectChange(v as string)}
                     showSearch
@@ -226,14 +294,17 @@ export default function PurchaseOrderCreatePage() {
                 </Form.Item>
                 <Form.Item label="是否异地发车" required extra={remoteHint}>
                   <Select
-                    value={remoteDispatch}
-                    disabled={!model || !remoteEditable}
+                    value={remoteDisplay}
+                    disabled={!project || !model || !remoteEditable}
                     options={[{ value: '是', label: '是' }, { value: '否', label: '否' }]}
                     onChange={v => onRemoteDispatchChange(v as '是' | '否')}
                   />
                 </Form.Item>
               </>
             )}
+            <Form.Item name="remark" label="备注" style={{ gridColumn: 'span 2' }} rules={[{ max: 200 }]}>
+              <Input.TextArea placeholder="请输入" maxLength={200} showCount autoSize={{ minRows: 2, maxRows: 4 }} />
+            </Form.Item>
           </div>
           {/* 收货信息 */}
           <div style={{ margin: '16px 0 12px', fontWeight: 600, borderLeft: '3px solid #1677ff', paddingLeft: 8 }}>收货信息</div>
@@ -243,7 +314,7 @@ export default function PurchaseOrderCreatePage() {
               {addresses.length > 1 && (
                 <Form.Item label="异地收货地址" required extra="该车型备案有多个收货地址，请选择">
                   <Select
-                    value={addressId || undefined}
+                    value={effectiveAddressId || undefined}
                     placeholder="请选择异地收货地址"
                     options={addresses.map(a => ({ value: a.addressId, label: a.address }))}
                     onChange={v => setAddressId(v as string)}
